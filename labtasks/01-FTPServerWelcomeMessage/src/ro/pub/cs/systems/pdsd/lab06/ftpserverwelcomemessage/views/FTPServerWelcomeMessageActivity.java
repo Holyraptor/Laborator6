@@ -1,7 +1,14 @@
 package ro.pub.cs.systems.pdsd.lab06.ftpserverwelcomemessage.views;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.Socket;
+
 import ro.pub.cs.systems.pdsd.lab06.ftpserverwelcomemessage.R;
 import ro.pub.cs.systems.pdsd.lab06.ftpserverwelcomemessage.general.Constants;
+import ro.pub.cs.systems.pdsd.lab06.ftpserverwelcomemessage.general.Utilities;
 import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
@@ -16,6 +23,7 @@ public class FTPServerWelcomeMessageActivity extends Activity {
 	
 	private EditText FTPServerAddressEditText;
 	private TextView welcomeMessageTextView;
+	private Socket socket;
 	
 	protected class FTPServerCommunicationThread extends Thread {
 		
@@ -32,7 +40,41 @@ public class FTPServerWelcomeMessageActivity extends Activity {
 				// - the value does not start with Constants.FTP_MULTILINE_START_CODE2
 				// append the line to the welcomeMessageTextView text view content (on the UI thread!!!)
 				// close the socket
+				FTPServerAddressEditText = (EditText)findViewById(R.id.ftp_server_address_edit_text);
+				welcomeMessageTextView = (TextView)findViewById(R.id.welcome_message_text_view);
+				
+				String hostname = FTPServerAddressEditText.getText().toString();
+				int port = 21;
+				socket = new Socket(hostname, port);
+				
+				InputStreamReader inputStreamReader = new InputStreamReader(socket.getInputStream());
+				BufferedReader bufferedReader = Utilities.getReader(socket);
+				
+				while(true){
+					if(bufferedReader.readLine().startsWith(Constants.FTP_MULTILINE_START_CODE)){
+						String line = bufferedReader.readLine();
+						
+						while(!line.startsWith(Constants.FTP_MULTILINE_END_CODE2) && !line.equals(Constants.FTP_MULTILINE_END_CODE1)){
+							final String line2 = line;
+							welcomeMessageTextView.post(new Runnable() {
+								
+								@Override
+								public void run() {
+									welcomeMessageTextView.setText(welcomeMessageTextView.getText().toString() + line2);
+								}
+							});
+							line = bufferedReader.readLine();
+						}
 
+						break;
+					}
+					
+					break;
+				}
+					
+				
+				socket.close();
+				
 			} catch (Exception exception) {
 				Log.e(Constants.TAG, "An exception has occurred: "+exception.getMessage());
 				if (Constants.DEBUG) {
